@@ -80,6 +80,7 @@ class MboxSyncer:
 
             return Email(
                 id=message_id,
+                message_id=message_id,
                 thread_id=message_id,
                 subject=msg.get("Subject", "(No Subject)"),
                 sender=sender,

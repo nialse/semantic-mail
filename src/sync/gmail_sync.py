@@ -123,6 +123,8 @@ class GmailSyncer:
                     for email in headers[field].split(','):
                         recipients.append(self._extract_email_address(email.strip()))
             
+            message_id = headers.get('message-id', msg_data['id'])
+
             attachments = []
             for part in msg_data.get('payload', {}).get('parts', []):
                 if part.get('filename'):
@@ -134,6 +136,7 @@ class GmailSyncer:
             
             return Email(
                 id=msg_data['id'],
+                message_id=message_id,
                 thread_id=msg_data['threadId'],
                 subject=headers.get('subject', '(No Subject)'),
                 sender=sender,

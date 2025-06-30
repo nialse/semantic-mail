@@ -29,19 +29,49 @@ class EmailSearcher:
             console.print("[red]Failed to generate query embedding[/red]")
             return []
 
-        search_results = self.vector_store.search(query_embedding, n_results)
+        total_count = self.vector_store.collection.count()
+        fetch_count = min(n_results * 2, total_count)
+        accumulated = []
 
-        if not search_results:
+        while True:
+            search_results = self.vector_store.search(query_embedding, fetch_count)
+
+            if not search_results:
+                break
+
+            accumulated.extend(search_results)
+
+            dedup = {}
+            for email_id, distance, metadata in accumulated:
+                message_id = metadata.get("message_id", email_id)
+                if message_id not in dedup or distance < dedup[message_id][1]:
+                    dedup[message_id] = (email_id, distance, metadata)
+
+            if len(dedup) >= n_results or fetch_count >= total_count:
+                break
+
+            fetch_count = min(fetch_count * 2, total_count)
+
+        if not accumulated:
             console.print("[yellow]No results found[/yellow]")
             return []
 
+        dedup = {}
+        for email_id, distance, metadata in accumulated:
+            message_id = metadata.get("message_id", email_id)
+            if message_id not in dedup or distance < dedup[message_id][1]:
+                dedup[message_id] = (email_id, distance, metadata)
+
+        sorted_results = sorted(dedup.values(), key=lambda x: x[1])[:n_results]
+
         results = []
-        for email_id, distance, metadata in search_results:
+        for email_id, distance, metadata in sorted_results:
             email_data = self.vector_store.get_email_by_id(email_id)
 
             if email_data:
                 email = Email(
                     id=email_id,
+                    message_id=metadata.get("message_id", email_id),
                     thread_id=metadata["thread_id"],
                     subject=metadata["subject"],
                     sender=metadata["sender"],

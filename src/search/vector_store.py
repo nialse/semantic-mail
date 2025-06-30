@@ -102,6 +102,7 @@ class EmailVectorStore:
                 "subject": email.subject,
                 "sender": email.sender,
                 "date": email.date.isoformat(),
+                "message_id": email.message_id,
                 "thread_id": email.thread_id,
                 "snippet": email.snippet[:500],
                 "labels": json.dumps(email.labels),

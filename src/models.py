@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class Email(BaseModel):
     id: str = Field(..., description="Unique email ID from Gmail")
+    message_id: str = Field(..., description="Message-ID header value")
     thread_id: str = Field(..., description="Gmail thread ID")
     subject: str = Field(..., description="Email subject")
     sender: str = Field(..., description="Email sender")

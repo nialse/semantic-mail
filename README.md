@@ -81,6 +81,20 @@ smail sync --clear                      # prompts before clearing
 
 **Note:** Each embedding model creates a separate collection. You must search using the same model you used for indexing.
 
+### Import from MBOX
+
+Use the `sync-mbox` command to index a local `.mbox` file instead of Gmail:
+
+```bash
+smail sync-mbox path/to/mailbox.mbox
+smail sync-mbox archive.mbox --model mxbai-embed-large
+```
+
+**Options:**
+- `--provider / -p` - Embedding provider (ollama/openai)
+- `--model / -m` - Embedding model
+- `--clear` - Clear existing data before import
+
 ### Search Emails
 
 The `search` command finds emails by semantic meaning:
@@ -192,7 +206,7 @@ CHROMA_PERSIST_DIRECTORY=data/chroma
 src/
 ├── answering/  # Ask AI agent
 ├── auth/       # Gmail OAuth flow
-├── sync/       # Email fetching and processing
+├── sync/       # Email fetching and processing (Gmail/MBOX)
 ├── embedding/  # Ollama/OpenAI embedding generation
 ├── search/     # ChromaDB vector operations
 └── cli.py      # Command-line interface

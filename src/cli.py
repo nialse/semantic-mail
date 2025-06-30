@@ -5,6 +5,7 @@ from rich.prompt import Prompt, Confirm
 
 from .auth.gmail_auth import GmailAuthenticator
 from .sync.gmail_sync import GmailSyncer
+from .sync.mbox_sync import MboxSyncer
 from .embedding.embedder_factory import (
     get_embedder,
     get_smart_embedder,
@@ -211,6 +212,82 @@ def sync(query, limit, clear, incremental, provider, model):
 
     except Exception as e:
         console.print(f"[red]Error during sync: {e}[/red]")
+
+
+@cli.command("sync-mbox")
+@click.argument("mbox_file", type=click.Path(exists=True))
+@click.option("--clear", is_flag=True, help="Clear existing email database before import")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["ollama", "openai"]),
+    help="Embedding provider",
+)
+@click.option("--model", "-m", help="Specific model to use for embeddings")
+def sync_mbox(mbox_file, clear, provider, model):
+    """Import emails from a local mbox file"""
+    try:
+        try:
+            embedder = get_embedder(provider=provider, model=model)
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            console.print("Run 'models' command to see available options")
+            return
+
+        if not embedder.test_connection():
+            console.print("[red]Failed to connect to embedding service.[/red]")
+            return
+
+        vector_store = EmailVectorStore(embedder)
+
+        stats = vector_store.get_stats()
+        if stats["total_emails"] > 0:
+            console.print(f"\n[cyan]Current collection:[/cyan]")
+            console.print(f"  Collection: {stats['collection_name']}")
+            console.print(f"  Model: {stats['model_id']}")
+            console.print(f"  Existing emails: {stats['total_emails']}")
+            if stats.get("last_sync_date"):
+                console.print(f"  Last sync: {stats['last_sync_date']}")
+
+            if clear:
+                if Confirm.ask(
+                    "\n[bold red]Delete all existing emails in this collection?[/bold red]",
+                    default=False,
+                ):
+                    vector_store.clear_collection()
+                    console.print("[green]Collection cleared[/green]\n")
+                else:
+                    console.print("[yellow]Keeping existing emails[/yellow]\n")
+            else:
+                console.print("\n[dim]Adding new emails to existing collection[/dim]\n")
+
+        syncer = MboxSyncer(mbox_file)
+        emails = syncer.sync_emails()
+
+        if emails:
+            console.print(f"\n[cyan]Processing {len(emails)} emails from mbox...[/cyan]")
+
+            email_ids = [email.id for email in emails]
+            existing, new = vector_store.check_emails_exist(email_ids)
+
+            if existing:
+                console.print(f"[dim]Skipping {len(existing)} duplicate emails[/dim]")
+
+            emails_with_embeddings = embedder.embed_emails(emails)
+            vector_store.add_emails(emails_with_embeddings)
+
+            stats = vector_store.get_stats()
+            console.print("\n[bold green]✓ Import complete![/bold green]")
+            console.print(f"[green]Collection: {stats['collection_name']}[/green]")
+            console.print(f"[green]Model: {stats['model_id']}[/green]")
+            console.print(f"[green]Total emails: {stats['total_emails']}[/green]")
+            if stats.get("last_sync_date"):
+                console.print(f"[green]Last sync: {stats['last_sync_date']}[/green]")
+        else:
+            console.print("\n[yellow]No emails found in mbox file[/yellow]")
+
+    except Exception as e:
+        console.print(f"[red]Error during mbox import: {e}[/red]")
 
 
 @cli.command()

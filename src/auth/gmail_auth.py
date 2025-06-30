@@ -16,6 +16,10 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 class GmailAuthenticator:
     def __init__(self):
         self.settings = get_settings()
+        if not self.settings.gmail_client_id or not self.settings.gmail_client_secret:
+            raise ValueError(
+                "Gmail credentials not configured. Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET or run 'smail setup'."
+            )
         self.creds: Optional[Credentials] = None
         self.service = None
 

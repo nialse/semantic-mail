@@ -6,8 +6,14 @@ from pydantic import Field
 
 
 class Settings(BaseSettings):
-    gmail_client_id: str = Field(..., description="Gmail OAuth client ID")
-    gmail_client_secret: str = Field(..., description="Gmail OAuth client secret")
+    gmail_client_id: Optional[str] = Field(
+        default=None,
+        description="Gmail OAuth client ID",
+    )
+    gmail_client_secret: Optional[str] = Field(
+        default=None,
+        description="Gmail OAuth client secret",
+    )
     
     embedding_provider: str = Field(default="ollama", description="Embedding provider: 'ollama' or 'openai'")
     
@@ -42,4 +48,4 @@ def get_settings() -> Settings:
 
 def reset_settings():
     global _settings
-    _settings = None 
+    _settings = None

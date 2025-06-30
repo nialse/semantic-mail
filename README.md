@@ -6,10 +6,11 @@ Lightweight CLI agent to semantically **search** and **ask** your emails. Downlo
 
 
 By default, Semantic Mail uses [Ollama](https://github.com/ollama/ollama) for local embeddings and ChromaDB for vector storage
+Telemetry in ChromaDB is disabled by default.
 
 ## Install
 
-Semantic Mail requires Python 3.11+, Ollama, and Gmail API credentials.
+Semantic Mail requires Python 3.11+ and Ollama. Gmail API credentials are only needed when syncing directly from Gmail.
 
 ```bash
 # Install Ollama first

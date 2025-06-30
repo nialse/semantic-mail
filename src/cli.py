@@ -122,7 +122,11 @@ def models():
 def sync(query, limit, clear, incremental, provider, model):
     """Sync emails from Gmail and create embeddings"""
     try:
-        auth = GmailAuthenticator()
+        try:
+            auth = GmailAuthenticator()
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            return
         if not auth.test_connection():
             console.print("[red]Failed to connect to Gmail. Run 'setup' first.[/red]")
             return
@@ -526,6 +530,8 @@ def test():
             console.print("[green]✓ Gmail connection successful[/green]")
         else:
             console.print("[red]✗ Gmail connection failed[/red]")
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
     except Exception as e:
         console.print(f"[red]✗ Gmail error: {e}[/red]")
 

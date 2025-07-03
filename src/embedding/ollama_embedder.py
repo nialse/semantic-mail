@@ -1,6 +1,8 @@
 from typing import List, Optional
 import ollama
 from tqdm import tqdm
+from urllib.parse import urlparse, urlunparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
 
 from .base_embedder import BaseEmbedder
@@ -15,7 +17,18 @@ class OllamaEmbedder(BaseEmbedder):
     def __init__(self, model_name: Optional[str] = None):
         self.settings = get_settings()
         self.model_name = model_name or self.settings.ollama_model
-        self.client = ollama.Client(host=self.settings.ollama_host)
+
+        base_url = urlparse(self.settings.ollama_host)
+        base_port = base_url.port or 11434
+        self.clients = []
+        instance_count = max(1, self.settings.ollama_instance_count)
+        for i in range(instance_count):
+            port = base_port + i
+            new_netloc = f"{base_url.hostname}:{port}"
+            url = base_url._replace(netloc=new_netloc)
+            self.clients.append(ollama.Client(host=urlunparse(url)))
+
+        self.client = self.clients[0]
         self._embedding_dimension = None
         self._ensure_model_available()
 
@@ -52,13 +65,21 @@ class OllamaEmbedder(BaseEmbedder):
                 console.print(
                     f"[green]Model {self.model_name} pulled successfully[/green]"
                 )
+
+            # Ensure all additional clients have the model
+            for extra_client in self.clients[1:]:
+                try:
+                    extra_client.list()
+                except Exception:
+                    pass
         except Exception as e:
             console.print(f"[red]Error checking/pulling model: {e}[/red]")
             raise
 
-    def generate_embedding(self, text: str) -> Optional[List[float]]:
+    def generate_embedding(self, text: str, client: Optional[ollama.Client] = None) -> Optional[List[float]]:
+        client = client or self.client
         try:
-            response = self.client.embed(model=self.model_name, input=text)
+            response = client.embed(model=self.model_name, input=text)
 
             if "embeddings" in response and len(response["embeddings"]) > 0:
                 return response["embeddings"][0]
@@ -73,13 +94,22 @@ class OllamaEmbedder(BaseEmbedder):
     def generate_embeddings_batch(
         self, texts: List[str]
     ) -> List[Optional[List[float]]]:
-        embeddings = []
+        embeddings: List[Optional[List[float]]] = [None] * len(texts)
 
         with tqdm(total=len(texts), desc="Generating embeddings") as pbar:
-            for text in texts:
-                embedding = self.generate_embedding(text)
-                embeddings.append(embedding)
-                pbar.update(1)
+            with ThreadPoolExecutor(max_workers=len(self.clients)) as executor:
+                future_to_index = {
+                    executor.submit(
+                        self.generate_embedding,
+                        text,
+                        self.clients[i % len(self.clients)],
+                    ): i
+                    for i, text in enumerate(texts)
+                }
+                for future in as_completed(future_to_index):
+                    idx = future_to_index[future]
+                    embeddings[idx] = future.result()
+                    pbar.update(1)
 
         return embeddings
 
@@ -106,7 +136,7 @@ class OllamaEmbedder(BaseEmbedder):
         try:
             response = self.client.list()
             console.print(
-                f"[green]Connected to Ollama at {self.settings.ollama_host}[/green]"
+                f"[green]Connected to Ollama at {self.settings.ollama_host} ({len(self.clients)} instance{'s' if len(self.clients) != 1 else ''})[/green]"
             )
 
             if isinstance(response, dict) and "models" in response:

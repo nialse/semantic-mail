@@ -11,6 +11,33 @@ from ..models import Email
 
 console = Console()
 
+import mmap, re, mailbox, os
+from tqdm import tqdm
+
+class FastMbox(mailbox.mbox):
+    _pat = re.compile(br'\nFrom ')
+    def _generate_toc(self):
+        size = os.path.getsize(self._path)
+        with open(self._path, 'rb') as f:
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+            bar = tqdm(total=size, unit='B', unit_scale=True, desc='Indexing mbox')
+            starts, stops, last = [0], [], 0
+            for m in self._pat.finditer(mm):
+                pos = m.start() + 1
+                stops.append(pos)
+                starts.append(pos)
+                if bar: bar.update(pos - last)
+                last = pos
+            stops.append(len(mm))
+            if bar:
+                bar.update(len(mm) - last)
+                bar.close()
+            self._toc = dict(enumerate(zip(starts, stops)))
+            self._next_key = len(self._toc)
+            self._file_length = len(mm)
+
+
+
 
 class MboxSyncer:
     """Load emails from a local mbox file"""
@@ -131,7 +158,7 @@ class MboxSyncer:
 
     def sync_emails(self) -> List[Email]:
         console.print(f"[bold blue]Loading mbox file {self.mbox_path}...[/bold blue]")
-        mbox = mailbox.mbox(self.mbox_path)
+        mbox = FastMbox(self.mbox_path)
         emails: List[Email] = []
         total_messages = len(mbox)
         with tqdm(total=total_messages, desc="Parsing mbox") as pbar:

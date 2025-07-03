@@ -47,17 +47,36 @@ class OllamaEmbedder(BaseEmbedder):
     def _ensure_model_available(self):
         try:
             response = self.client.list()
-            if isinstance(response, dict) and "models" in response:
+
+            models = []
+            if hasattr(response, "models"):
+                models = response.models
+            elif isinstance(response, dict) and "models" in response:
                 models = response["models"]
-            else:
+            elif isinstance(response, list):
                 models = response
 
-            model_names = [
-                model["name"] if isinstance(model, dict) else str(model)
-                for model in models
-            ]
+            model_names = []
+            for model in models:
+                if hasattr(model, "model"):
+                    model_names.append(model.model)
+                elif isinstance(model, dict):
+                    model_name = model.get("name", model.get("model"))
+                    if model_name:
+                        model_names.append(model_name)
+                else:
+                    model_names.append(str(model))
 
-            if self.model_name not in model_names:
+            model_found = False
+            for available_model in model_names:
+                if (
+                    available_model == self.model_name
+                    or available_model.startswith(f"{self.model_name}:")
+                ):
+                    model_found = True
+                    break
+
+            if not model_found:
                 console.print(
                     f"[yellow]Model {self.model_name} not found. Pulling...[/yellow]"
                 )
@@ -139,15 +158,25 @@ class OllamaEmbedder(BaseEmbedder):
                 f"[green]Connected to Ollama at {self.settings.ollama_host} ({len(self.clients)} instance{'s' if len(self.clients) != 1 else ''})[/green]"
             )
 
-            if isinstance(response, dict) and "models" in response:
+            models = []
+            if hasattr(response, "models"):
+                models = response.models
+            elif isinstance(response, dict) and "models" in response:
                 models = response["models"]
-            else:
+            elif isinstance(response, list):
                 models = response
 
-            model_names = [
-                model["name"] if isinstance(model, dict) else str(model)
-                for model in models
-            ]
+            model_names = []
+            for model in models:
+                if hasattr(model, "model"):
+                    model_names.append(model.model)
+                elif isinstance(model, dict):
+                    model_name = model.get("name", model.get("model"))
+                    if model_name:
+                        model_names.append(model_name)
+                else:
+                    model_names.append(str(model))
+
             console.print(f"[blue]Available models: {model_names}[/blue]")
 
             test_embedding = self.generate_embedding("Test connection")

@@ -4,6 +4,7 @@ from email.utils import parsedate_to_datetime, getaddresses
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
+from tqdm import tqdm
 
 from ..models import Email
 
@@ -99,10 +100,13 @@ class MboxSyncer:
         console.print(f"[bold blue]Loading mbox file {self.mbox_path}...[/bold blue]")
         mbox = mailbox.mbox(self.mbox_path)
         emails: List[Email] = []
-        for idx, msg in enumerate(mbox):
-            email_obj = self._parse_email(msg, idx)
-            if email_obj:
-                emails.append(email_obj)
+        total_messages = len(mbox)
+        with tqdm(total=total_messages, desc="Parsing mbox") as pbar:
+            for idx, msg in enumerate(mbox):
+                email_obj = self._parse_email(msg, idx)
+                if email_obj:
+                    emails.append(email_obj)
+                pbar.update(1)
         mbox.close()
         console.print(f"[bold green]Loaded {len(emails)} emails from mbox[/bold green]")
         return emails

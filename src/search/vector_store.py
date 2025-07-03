@@ -60,7 +60,7 @@ class EmailVectorStore:
                 "collection_name": self.collection_name,
                 "model_id": self.model_id,
             }
-            with open(metadata_path, "w") as f:
+            with open(metadata_path, "w", encoding="utf-8") as f:
                 json.dump(sync_data, f)
         except Exception as e:
             console.print(f"[red]Error updating last sync date: {e}[/red]")
@@ -70,7 +70,7 @@ class EmailVectorStore:
         try:
             metadata_path = self._get_sync_metadata_path()
             if metadata_path.exists():
-                with open(metadata_path, "r") as f:
+                with open(metadata_path, "r", encoding="utf-8") as f:
                     sync_data = json.load(f)
                     last_sync_str = sync_data.get("last_sync_date")
                     if last_sync_str:
@@ -283,7 +283,7 @@ class EmailVectorStore:
             sync_file = metadata_dir / f"{c.name}_sync.json"
             if sync_file.exists():
                 try:
-                    with open(sync_file, "r") as f:
+                    with open(sync_file, "r", encoding="utf-8") as f:
                         sync_data = json.load(f)
                         metadata["last_sync_date"] = sync_data.get("last_sync_date")
                 except Exception:

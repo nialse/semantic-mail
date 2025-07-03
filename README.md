@@ -197,8 +197,11 @@ GMAIL_CLIENT_ID=your_client_id
 GMAIL_CLIENT_SECRET=your_client_secret
 
 OLLAMA_HOST=http://localhost:11434
+OLLAMA_INSTANCE_COUNT=1
 CHROMA_PERSIST_DIRECTORY=data/chroma
 ```
+
+Set `OLLAMA_INSTANCE_COUNT` to the number of Ollama servers running on sequential ports starting from the port specified in `OLLAMA_HOST`. For example, `OLLAMA_HOST=http://localhost:11434` with `OLLAMA_INSTANCE_COUNT=10` will use ports `11434` through `11443`.
 
 ## Architecture
 

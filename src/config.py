@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     
     ollama_model: str = Field(default="nomic-embed-text", description="Ollama model for embeddings")
     ollama_host: str = Field(default="http://localhost:11434", description="Ollama server URL")
+    ollama_instance_count: int = Field(default=1, description="Number of Ollama instances running on sequential ports")
     
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
     openai_model: str = Field(default="text-embedding-3-small", description="OpenAI embedding model")

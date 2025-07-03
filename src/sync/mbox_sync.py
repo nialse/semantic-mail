@@ -1,6 +1,7 @@
 import mailbox
 import email
 from email.utils import parsedate_to_datetime, getaddresses
+from email.header import decode_header
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
@@ -25,6 +26,23 @@ class MboxSyncer:
         html = re.sub(r"\s+", " ", html)
         return html.strip()
 
+    def _decode_header(self, value: str) -> str:
+        """Decode RFC2047 header values to a readable string."""
+        if not value:
+            return ""
+        decoded = decode_header(value)
+        parts = []
+        for fragment, charset in decoded:
+            if isinstance(fragment, bytes):
+                charset = charset or "utf-8"
+                try:
+                    parts.append(fragment.decode(charset, errors="ignore"))
+                except LookupError:
+                    parts.append(fragment.decode("utf-8", errors="ignore"))
+            else:
+                parts.append(fragment)
+        return "".join(parts)
+
     def _get_body(self, msg: email.message.Message) -> str:
         if msg.is_multipart():
             parts = []
@@ -37,7 +55,11 @@ class MboxSyncer:
                 payload = part.get_payload(decode=True)
                 if payload is None:
                     continue
-                text = payload.decode(errors="ignore")
+                charset = part.get_content_charset() or "utf-8"
+                try:
+                    text = payload.decode(charset, errors="ignore")
+                except LookupError:
+                    text = payload.decode("utf-8", errors="ignore")
                 if content_type == "text/plain":
                     parts.append(text)
                 elif content_type == "text/html" and not parts:
@@ -45,7 +67,11 @@ class MboxSyncer:
             return "\n".join(parts)
         payload = msg.get_payload(decode=True)
         if isinstance(payload, bytes):
-            return payload.decode(errors="ignore")
+            charset = msg.get_content_charset() or "utf-8"
+            try:
+                return payload.decode(charset, errors="ignore")
+            except LookupError:
+                return payload.decode("utf-8", errors="ignore")
         return str(payload)
 
     def _parse_email(self, msg: email.message.Message, index: int) -> Optional[Email]:
@@ -59,11 +85,15 @@ class MboxSyncer:
                 except Exception:
                     pass
 
-            sender = email.utils.parseaddr(msg.get("From", ""))[1]
+            sender_header = self._decode_header(msg.get("From", ""))
+            sender = email.utils.parseaddr(sender_header)[1]
+
             recipients = []
             for field in ["To", "Cc"]:
-                if msg.get(field):
-                    recipients.extend(addr for name, addr in getaddresses([msg.get(field)]))
+                header_value = msg.get(field)
+                if header_value:
+                    decoded = self._decode_header(header_value)
+                    recipients.extend(addr for name, addr in getaddresses([decoded]))
 
             body = self._get_body(msg)
             snippet = body[:100].replace("\n", " ").strip()
@@ -79,11 +109,14 @@ class MboxSyncer:
                             "size": len(part.get_payload(decode=True) or b""),
                         })
 
+            subject_header = msg.get("Subject", "(No Subject)")
+            subject = self._decode_header(subject_header) or "(No Subject)"
+
             return Email(
                 id=message_id,
                 message_id=message_id,
                 thread_id=message_id,
-                subject=msg.get("Subject", "(No Subject)"),
+                subject=subject,
                 sender=sender,
                 recipients=recipients,
                 date=date,

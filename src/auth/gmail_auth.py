@@ -37,7 +37,7 @@ class GmailAuthenticator:
         creds_path = self._get_credentials_file_path()
         creds_path.parent.mkdir(exist_ok=True)
 
-        with open(creds_path, "w") as f:
+        with open(creds_path, "w", encoding="utf-8") as f:
             json.dump(creds_data, f, indent=2)
 
     def authenticate(self) -> bool:
@@ -60,7 +60,7 @@ class GmailAuthenticator:
                     self.creds = flow.run_local_server(port=0)
 
                 self.settings.credentials_path.parent.mkdir(exist_ok=True)
-                with open(self.settings.credentials_path, "w") as token:
+                with open(self.settings.credentials_path, "w", encoding="utf-8") as token:
                     token.write(self.creds.to_json())
 
             self.service = build("gmail", "v1", credentials=self.creds)

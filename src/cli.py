@@ -75,7 +75,7 @@ OPENAI_MODEL=text-embedding-3-small
 CHROMA_PERSIST_DIRECTORY=data/chroma
 """
 
-    with open(env_path, "w") as f:
+    with open(env_path, "w", encoding="utf-8") as f:
         f.write(env_content)
 
     console.print("[green]✓ Configuration saved to .env file[/green]")
